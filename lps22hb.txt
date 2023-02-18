@@ -1,6 +1,7 @@
 /* USER CODE BEGIN Header */
 /**
- * lps22hb temperature and atmosferic pressure sensor
+ * lps22hb temperature and atmosferic pressure sensor, conect lps22hb sensor to 
+ * to stm411re and watch temperature and pressure on uart(115200) reader like 'TeraTerm'.
   ******************************************************************************
   * @file           : main.c
   * @brief          : Main program body

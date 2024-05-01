@@ -1,1 +1,17 @@
+There are 3 tasks with different priority, Task1 Priority is BelowNormal, Task2 Priority 
+is Normal, Task3 Priority is AboveNormal and ere is external interupt PC13(blue button 
+on stm board).In the highest priority task, semaphore giving when the button is  pressed.
+Then after task3 over, task2 and task1 are execute. If we change semahore on lower task,
+task with highest priority will be doing because it no need semaphore to run.
+
+
+
+
+
+
+
+
+
+
+i
 

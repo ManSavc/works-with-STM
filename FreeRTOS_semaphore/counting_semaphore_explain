@@ -1,0 +1,8 @@
+  The code is designed to demonstrate how a counting semaphore works. There are 3 tasks required in the code
+semaphore. We provide a single semaphore on line 259 and release it in the highest priority task
+A medium-priority task can be executed because semaphore is > 0 (highest task release semaphore).
+The third task (low priority) cannot be executed because it does not have a semaphore (the second task does not
+released it). Showing it in the photo (count_sem_Commented.jpg).
+  IF we reverse the code on line 260, we will give two semaphores and all three tasks will be there
+executed because the first task released the semaphore and can also be used by task 2 and the task with the lowest
+priority may receive an unused semaphore. This can be seen in the photo (count_sem_Uncommented).

@@ -1,0 +1,16 @@
+LCD module is "DEM 40271 syh-ly". Connections to stm32f411re board is:
+
+
+A4 -> PC1 LCD 11  DATA
+A5 -> PC0 LCD 12  DATA
+A0 -> PA0 LCD 13  DATA
+A1 -> PA1 LCD 14  DATA
+
+A3 -> PB0 LCD 4  RS
+A2 -> PA4 LCD 6  Enable
+
+          LCD 5 GROUND
+ 	  LCD 1 -> -
+	  LCD 2 -> +
+	  LCD 3 -> CONTRAST
+   In the program you see the varible name, type, size and range.

@@ -1,0 +1,462 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2022 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include <string.h>//needs for memset
+#include <stdio.h> // needs for snprintf
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
+UART_HandleTypeDef huart2;
+
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
+/* USER CODE BEGIN PFP */
+uint16_t DeviceAdrr   = 0xD6;//reading address "lsm6dsl"
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+uint8_t buffer[40];
+
+uint8_t TEMP_OUT_L[1];
+uint8_t TEMP_OUT_H[1];
+uint16_t TEMP_OUT_H_L[1];
+
+uint8_t FIFO_CTRL2[1];
+uint8_t INT2_CTRL[1];
+
+uint8_t STATUS_REG[1];
+
+//gyro
+uint8_t CTRL2_G[1];
+uint8_t FIFO_CTRL3[1];
+uint8_t FIFO_CTRL5[1];
+
+uint8_t OUTX_L_G[1];
+uint8_t OUTX_H_G[1];
+int16_t OUTX_HL_G[1];
+
+uint8_t OUTY_L_G[1];
+uint8_t OUTY_H_G[1];
+int16_t OUTY_HL_G[1];
+
+uint8_t OUTZ_L_G[1];
+uint8_t OUTZ_H_G[1];
+int16_t OUTZ_HL_G[1];
+	/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
+	 uint8_t who_am_i[1];
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_I2C1_Init();
+  /* USER CODE BEGIN 2 */
+
+  //read the 'who am i'
+   HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x0F, 1, who_am_i, 1, HAL_MAX_DELAY   ); //01101010 -> 106
+   if(who_am_i[0] == 106){
+
+	   sprintf(buffer,"  \t\t --LSM6DSL-- \n\n\r" );
+   }
+
+   HAL_UART_Transmit(&huart2,buffer , sizeof(buffer), HAL_MAX_DELAY);
+
+   //let begin gyroscope
+
+   	  //read the GYRO ODR in CTRL2_G (11h)
+   	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x11, 1, 	CTRL2_G , 1, 100);
+   	  uint8_t reset4[1];
+   	  reset4[0] = (CTRL2_G[0] |= 1 << 6); //for the rate
+   	  HAL_I2C_Mem_Write(&hi2c1, DeviceAdrr ,0x11, 1, reset4, 1, 100);
+   	  HAL_Delay(100);
+
+
+   	  //read and write to FIFO control register the decimation setting FIFO_CTRL3 (08h)
+   	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x08, 1, 	FIFO_CTRL3 , 1, 100);
+   	 	  uint8_t reset5[1];
+   	 	  reset5[0] = (FIFO_CTRL3[0] |= (1 << 4) | (1 << 5) | (1 << 3) );
+   	 	  HAL_I2C_Mem_Write(&hi2c1, DeviceAdrr ,0x08, 1, reset5, 1, 100);
+   	 	  HAL_Delay(100);
+
+   	 	  //write FIFO to continous mode FIFO_CTRL5 (0Ah)
+   		      HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x0A, 1, 	FIFO_CTRL5 , 1, 100);
+   		  	  uint8_t reset6[1];
+   		  	  reset6[0] = (FIFO_CTRL5[0] |= 1 << 1 | 1 << 2);
+   		  	  HAL_I2C_Mem_Write(&hi2c1, DeviceAdrr ,0x0A, 1, reset6, 1, 100);
+   		  	  HAL_Delay(100);
+
+
+   		  	  //Gyroscope new data available in STATUS_REG (1Eh)
+   		  	  	  	  	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x1E, 1, 	STATUS_REG  , 1, 100);
+   		  	   		  	  uint8_t reset7[1];
+   		  	   		  	  reset6[0] = (STATUS_REG [0] |= 1 << 1 );
+   		  	   		  	  HAL_I2C_Mem_Write(&hi2c1, DeviceAdrr ,0x1E, 1, reset7, 1, 100);
+   		  	   		  	  HAL_Delay(100);
+
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+
+	  	  //read GYRO for <<X>> <<Y>> <<Z>>> axis
+	  // OUTX_L_G (22h)
+	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x22, 1, 	OUTX_L_G  , 1, 100);
+	  //OUTX_H_G (23h)
+	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x23, 1, 	OUTX_H_G  , 1, 100);
+	  OUTX_HL_G[0] =  ((int16_t)OUTX_H_G[0] << 8) | ((uint16_t)OUTX_L_G[0]);
+
+	  //OUTY_L_G (24h)
+	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x24, 1, 	OUTY_L_G  , 1, 100);
+	  //OUTY_H_G (25h)
+	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x25, 1, 	OUTY_H_G  , 1, 100);
+	  OUTY_HL_G[0] =  ((int16_t)OUTY_H_G[0] << 8) | ((uint16_t)OUTY_L_G[0]);
+
+	  //OUTZ_L_G (26h)
+	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x26, 1, 	OUTZ_L_G  , 1, 100);
+	  //OUTZ_H_G (27h)
+	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x27, 1, 	OUTZ_H_G  , 1, 100);
+	  OUTZ_HL_G[0] =  ((int16_t)OUTZ_H_G[0] << 8) | ((uint16_t)OUTZ_L_G[0]);
+
+
+
+
+	  	  //int  OUTY_HL =  OUTY_HL_G[0];
+	  	 //memset(buffer,'0',20);
+	  	  sprintf(buffer, "GYRO PROFUNDITY %d  ",OUTY_HL_G[0]);
+	  	  HAL_UART_Transmit(&huart2,buffer , 20, 10);
+		  	HAL_Delay(200);
+
+	  	//int  OUTZ_HL =  OUTZ_HL_G[0];
+	  	//memset(buffer,'0',60);
+	  	sprintf(buffer, "GYRO HORIZONTAL %d \n\r ",OUTZ_HL_G[0]);
+	  	HAL_UART_Transmit(&huart2,buffer , 20, 10);
+	  	HAL_Delay(200);
+
+	  	 int  OUTX_HL =  OUTX_HL_G[0];
+	  		  	 // memset(buffer,'0',60);
+	  		  	  sprintf(buffer, "GYRO VERTICAL %d  ",OUTX_HL_G[0]);
+	  		  	  HAL_UART_Transmit(&huart2,buffer , 20, 10);
+	  		  	 // HAL_UART_Transmit(huart, pData, Size, Timeout)
+	  		  	HAL_Delay(200);
+
+	  		  	if (OUTX_HL > 2000)
+	  		  	{
+	  		  	sprintf(buffer, "\n\t      !!! SUDDENLY FALL !!!! \n \n \r");
+	  		  	  	HAL_UART_Transmit(&huart2,buffer , 30, 10);
+
+	  			  	memset(buffer,' ',40);
+	  		  	}
+
+
+	  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x07, 1, 	FIFO_CTRL2 , 1, 100);
+
+	  	 //print 'TEMPERATURE MEASURES IN FIFO' to FIfO_CTRL2 (07h)
+	  		 uint8_t reset1[1];
+	  		 reset1[0] = (FIFO_CTRL2[0] |= 1 << 3); //for 'temp in fifo'
+	  		 HAL_I2C_Mem_Write(&hi2c1, DeviceAdrr ,0x07, 1, reset1, 1, 100);//for 'TEMP IN FIFO'
+	  		 HAL_Delay(100);
+
+	  		 //read FIFO
+	  		 HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x07, 1, 	FIFO_CTRL2 , 1, 100);
+
+	  		 //Read and  INT2_CTRL
+	  		HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x0E, 1, 	INT2_CTRL , 1, 100);
+
+	  		//print on INT2_CTRL   'Temperature Data Ready on INT2 pad'(second bit to "" 0 ""
+	  		uint8_t reset2[1];
+	  		 reset2[0] = (INT2_CTRL[0] &~ 1 << 2); //for 'Temperature Data Ready on INT2 pad'
+	  		 HAL_I2C_Mem_Write(&hi2c1, DeviceAdrr ,0x0E, 1, reset2, 1, 100);
+	  		 HAL_Delay(100);
+
+
+	  		//Read the STATUS_REG (1Eh)
+
+	  		// reset third bit for TDA in STATUS_REG
+	  		uint8_t reset3[1];
+	  		 reset3[0] = (STATUS_REG[0] |= 1 << 2); //for 'Temperature Data Ready on INT2 pad'
+	  			  		 HAL_I2C_Mem_Write(&hi2c1, DeviceAdrr ,0x1E, 1, reset3, 1, 100);
+	  			  		 HAL_Delay(100);
+
+	  			  		//READ TEMP FROM (lsm6dsl) LOW ANH HIGH AND CONSOLIDATE THEM
+	  			  			  HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x20, 1, 	TEMP_OUT_L , 1, HAL_MAX_DELAY);
+	  			  			  		HAL_I2C_Mem_Read(&hi2c1, DeviceAdrr,0x21, 1, 	TEMP_OUT_H, 1, HAL_MAX_DELAY);
+	  			  			  		TEMP_OUT_H_L[0] = ( (uint16_t)(TEMP_OUT_H[0]) << 8) | ( (uint16_t)(TEMP_OUT_L[0]) );
+
+	  			  			  		//TEMP_OUT_H_L reading in 16 bit resolution  --> 2^16=65536
+	  			  			  		int temper0  = ( TEMP_OUT_H_L[0] - 65536);
+
+	  			  			  		//The output of the temperature sensor is 0 LSB (typ.) at 25 °C.
+	  			  			  		//the temper is in thousands
+	  			  			  		int temper1 = 25000 + temper0;
+
+	  			  			  		//multiplaying for seeing it normal
+	  			  			  		float temper = temper1 * 0.001;
+
+
+	  			  			  		//float temper = 25 + temper0;
+	  			  			  		memset(buffer, 0, sizeof(buffer));
+	  			  			  		snprintf(buffer, sizeof(buffer),"TEMPERATURE %.2f \n\r ", temper );
+	  			  			  		HAL_UART_Transmit(&huart2,(uint8_t*)buffer , strlen(buffer), 10);
+
+
+
+
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : B1_Pin */
+  GPIO_InitStruct.Pin = B1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+}
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
+}
+
+#ifdef  USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */
+

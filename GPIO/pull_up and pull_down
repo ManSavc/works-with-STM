@@ -1,3 +1,6 @@
-Hello,here I simply set GPIO as pull__up and pull_downin CubeIDE .ioc file. 
+Hello,here I simply set GPIO as pull__up and pull_downin CubeIDE .ioc file. Here I add a photo of .ioc,
+coneccting (PCO - input - pull down; PC1 - input - pulll up) and result. Resistor PCO allways conect to 
+GND, sowhen we press button which conected to 3.3V, we see that port are set, othervise PC1 resistor are conected to 3.3V and always showSET
+sowhen we pressed the button which conected to GND, we see that pin is RESET.
 
     
